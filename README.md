@@ -1,43 +1,27 @@
-# Publicação do Controle de Amostragem
+# Controle de Amostragem — atualização
 
-## 1. Criar o banco gratuito
+Esta pasta contém o projeto completo para manutenção, com o painel novo consolidado em index.html e app.js. Inclui exportações de Excel, XML e JSON e o resumo em Excel.
 
-1. Crie um projeto em https://supabase.com.
-2. No menu **SQL Editor**, execute todo o conteúdo de `supabase-schema.sql`.
-3. Em **Authentication > Users**, crie as quatro contas abaixo. Marque o e-mail como confirmado ao criar cada conta.
+## Atualizar o site existente
 
-| Nome | E-mail inicial | Papel |
-| --- | --- | --- |
-| Admin | admin@amostragem.app | administrador |
-| User1 | user1@amostragem.app | usuário |
-| User2 | user2@amostragem.app | usuário |
-| User3 | user3@amostragem.app | usuário |
+1. Extraia o ZIP.
+2. No repositório GitHub já conectado à Vercel, envie o conteúdo desta pasta na mesma raiz dos arquivos atuais. Não crie uma subpasta Amostragem dentro do repositório.
+3. Os arquivos de código alterados nesta atualização são index.html e app.js. Os demais arquivos do sistema foram preservados da cópia local.
+4. Mantenha a configuração atual da Vercel. O novo vercel.json da proposta anterior não faz parte deste pacote.
+5. Se houver um vercel.json no GitHub direcionando / ou /index.html para dashboard.html, essa configuração precisa ser revisada antes de publicar: o painel atualizado deste pacote está em index.html.
+6. Confirme o commit na branch usada pela publicação e acompanhe a implantação na Vercel.
+7. Após publicar, confira login, carregamento dos registros, edição e exportações. Teste exclusão somente com um registro de teste e uma conta administradora.
 
-4. Rode no SQL Editor, após criar as contas:
+## Arquivos
 
-```sql
-update public.profiles p
-set display_name = u.raw_user_meta_data->>'display_name'
-from auth.users u
-where p.id = u.id and u.raw_user_meta_data ? 'display_name';
+- index.html: painel atualizado e botões de exportação.
+- app.js: lógica do painel, acesso ao Supabase e exportações.
+- login.html e login.js: acesso ao sistema.
+- config.js: conexão ao Supabase preservada da cópia local.
+- style.css: estilos existentes.
+- package.json: execução local.
+- supabase-schema.sql: referência do esquema existente. Não execute novamente para esta atualização.
 
-update public.profiles set display_name = 'Admin', role = 'admin'
-where id = (select id from auth.users where email = 'admin@amostragem.app');
-update public.profiles set display_name = 'User1' where id = (select id from auth.users where email = 'user1@amostragem.app');
-update public.profiles set display_name = 'User2' where id = (select id from auth.users where email = 'user2@amostragem.app');
-update public.profiles set display_name = 'User3' where id = (select id from auth.users where email = 'user3@amostragem.app');
-```
+O pacote não modifica o banco de dados nem cria contas. Se config.js foi atualizado diretamente no GitHub depois desta cópia local, preserve a versão atualmente publicada.
 
-Os e-mails acima são identificadores iniciais. Troque-os pelos e-mails reais antes do uso. Não use endereços que não sejam da equipe.
-
-## 2. Conectar o site
-
-No Supabase, abra **Project Settings > API**, copie a URL e a chave `anon` (pública), e preencha `config.js`. Não use a chave `service_role` no site.
-
-## 3. Publicar na Vercel
-
-Envie esta pasta para um repositório GitHub e importe-o na Vercel; como é HTML estático, não precisa configurar build. Alternativamente, envie a pasta pelo painel da Vercel. O endereço público será fornecido ao final da publicação.
-
-## Permissões
-
-Todos os quatro acessos podem consultar, criar e editar registros. Só o Admin pode excluir registros. Essas regras são aplicadas também pelo banco, não apenas pela tela.
+Esta preparação verifica os arquivos locais; a autenticação e as operações no ambiente publicado precisam ser conferidas após a implantação.
