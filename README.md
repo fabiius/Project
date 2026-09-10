@@ -6,16 +6,16 @@ Projeto completo atualizado, preservando HTML/JavaScript, login, Supabase, Chart
 
 1. Extraia o ZIP e abra a pasta Amostragem.
 2. Envie o conteúdo da pasta para a raiz do repositório existente. Não envie somente o ZIP e não crie uma subpasta Amostragem.
-3. Inclua todos os novos arquivos analytics, painel-analitico.html e os arquivos index.html e app.js atualizados.
+3. Inclua todos os arquivos desta versão, especialmente index.html, amostragem.html e painel-analitico.html, além dos arquivos analytics e app.js.
 4. Preserve a configuração atual de publicação da Vercel. Este pacote não adiciona nem substitui vercel.json.
 5. Confirme o commit na branch de publicação e aguarde a implantação.
-6. Entre no sistema e clique em **Painel Analítico**, no cabeçalho da tela de Amostragem. A nova página é /painel-analitico.html (ou /painel-analitico, caso a configuração existente remova extensões).
+6. Ao abrir o site ou concluir o login, o **Painel Analítico** será a página principal (index.html). A tela anterior está no menu **Amostragem** (amostragem.html). O endereço antigo painel-analitico.html redireciona para a página principal.
 
 config.js foi preservado da cópia local. Se a configuração no GitHub foi atualizada depois dela, preserve a versão atualmente publicada.
 
 Não é necessário executar SQL. supabase-schema.sql é a referência original: não execute novamente em um banco já funcionando.
 
-Se houver uma regra existente redirecionando / ou /index.html para dashboard.html, ela continuará apontando para esse arquivo. O painel clássico atualizado deste pacote é index.html; não use o vercel.json da proposta anterior que redirecionava para o dashboard alternativo.
+Se houver uma regra existente redirecionando / ou /index.html para dashboard.html, ela continuará apontando para esse arquivo. A página principal deste pacote é index.html (Painel Analítico); não use o vercel.json da proposta anterior que redirecionava para o dashboard alternativo.
 
 ## Implementado
 
@@ -32,13 +32,14 @@ Se houver uma regra existente redirecionando / ou /index.html para dashboard.htm
 ## Arquivos
 
 Alterados:
-- index.html: acesso ao Painel Analítico e cálculos compartilhados.
+- index.html: Painel Analítico como página inicial do site e destino após o login.
 - app.js: fórmulas compartilhadas, validação e correção da atualização do filtro quando um coordenador deixa de existir.
 - package.json: comandos opcionais de teste e verificação, sem novas dependências.
 - README.md: instruções atualizadas.
 
 Adicionados:
-- painel-analitico.html: estrutura da página e diálogos.
+- amostragem.html: tela anterior preservada, acessível pelo menu Amostragem.
+- painel-analitico.html: redirecionamento de compatibilidade para index.html.
 - analytics.css: aparência e responsividade.
 - analytics-metrics.js: cálculos, consolidação, grupos, validação, filtros e formatação.
 - analytics-service.js: consultas ao Supabase isoladas da apresentação.

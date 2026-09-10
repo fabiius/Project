@@ -23,7 +23,7 @@ Projeto estático com index.html e app.js (painel e edição), login.html e logi
 
 ## Arquitetura preservada
 
-A tela clássica permanece no endereço original, com um link para painel-analitico.html. A página nova preserva autenticação, banco, dependências e permissões. Componentes são funções JavaScript por responsabilidade, sem mudança de framework.
+O Painel Analítico é a página principal em index.html, inclusive após o login. A tela clássica está preservada em amostragem.html e acessível pelo menu. O endereço painel-analitico.html redireciona para index.html. Autenticação, banco, dependências e permissões foram preservados. Componentes são funções JavaScript por responsabilidade, sem mudança de framework.
 
 analytics-service.js concentra o acesso aos registros. A apresentação usa registros e consolidações; um adaptador futuro poderá transformar pessoas individuais em agregados compatíveis com as métricas atuais.
 

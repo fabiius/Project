@@ -1,22 +1,49 @@
 <!doctype html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Painel | Controle de Amostragem</title>
-  <script src="https://cdn.tailwindcss.com"></script><script src="https://cdn.jsdelivr.net/npm/chart.js"></script><script src="https://unpkg.com/lucide@latest"></script><script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-  <link rel="stylesheet" href="style.css">
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Painel Analítico | Controle de Amostragem</title>
+  <link rel="stylesheet" href="analytics.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script defer src="https://unpkg.com/lucide@latest"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script defer src="config.js"></script><script defer src="analytics-metrics.js"></script>
+  <script defer src="analytics-service.js"></script><script defer src="analytics-components.js"></script>
+  <script defer src="analytics-exports.js"></script><script defer src="analytics.js"></script>
 </head>
-<body class="bg-slate-100 text-slate-800 p-4 md:p-8">
-  <main class="max-w-7xl mx-auto space-y-6">
-    <header class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between card p-6">
-      <div class="flex items-center gap-4"><div class="p-3 rounded-xl bg-blue-600 text-white"><i data-lucide="activity"></i></div><div><h1 class="font-bold text-xl text-slate-900">Painel de Controle de Qualidade</h1><p class="text-sm text-slate-500">Acompanhamento e métricas de amostragem</p></div></div>
-      <div class="flex items-center gap-3"><a href="painel-analitico.html" class="button-primary">Painel Analítico</a><span id="user-name" class="text-sm font-semibold"></span><span id="role-badge" class="badge"></span><button id="logout" class="button-secondary">Sair</button></div>
-    </header>
-    <section class="card p-4 flex flex-wrap gap-2 justify-between items-center"><div class="flex flex-wrap gap-2"><button onclick="salvarExcel()" class="button-primary">Salvar (Excel)</button><button onclick="exportarXML()" class="button-secondary">Exportar XML</button><button onclick="exportarBackupJSON()" class="button-secondary">Baixar dados (JSON)</button></div><button onclick="baixarResumoDoDiaExcel()" class="button-primary">Baixar resumo do dia (Excel)</button></section>
-    <section class="card p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-4"><label class="text-sm font-semibold">Filtrar coordenador <select id="filter" class="input mt-1"></select></label><p id="info" class="text-sm text-slate-500"></p></section>
-    <section><h2 class="label mb-3">Resumo por coordenador</h2><div id="cards" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div></section>
-    <section class="card overflow-hidden"><div class="p-5 border-b flex items-center justify-between"><div><h2 class="font-bold text-slate-900">Matriz de Amostragem</h2><p class="text-xs text-slate-500">As alterações são salvas para todos os usuários.</p></div><button id="add" class="button-primary">Adicionar registro</button></div><div class="overflow-x-auto"><table class="w-full min-w-[1080px] text-sm"><thead><tr><th>Coordenador</th><th>Líder</th><th>Total base</th><th>Confirmado</th><th>Não conf.</th><th>Não conhece</th><th>Cx. postal</th><th>Contatadas</th><th>% confirmação</th><th>Ações</th></tr></thead><tbody id="rows"></tbody><tfoot id="totals"></tfoot></table></div></section>
-    <section class="grid grid-cols-1 lg:grid-cols-3 gap-6"><div class="card p-6"><h2 class="font-bold">Top líderes</h2><div id="ranking" class="mt-4 space-y-2"></div></div><div class="card p-6 lg:col-span-2"><h2 class="font-bold">Índice de confirmação por líder</h2><div class="h-72 mt-4"><canvas id="chart"></canvas></div></div></section>
+<body>
+  <a class="skip" href="#main">Pular para o conteúdo</a>
+  <aside class="sidebar">
+    <a class="brand" href="index.html"><i data-lucide="chart-no-axes-combined"></i><span>Controle de<br>Amostragem</span></a>
+    <nav aria-label="Navegação principal">
+      <a class="active" href="index.html" aria-current="page"><i data-lucide="layout-dashboard"></i>Painel Analítico</a>
+      <a href="amostragem.html"><i data-lucide="table-2"></i>Amostragem</a>
+      <a href="#operation"><i data-lucide="users"></i>Operação</a>
+      <a href="#reports"><i data-lucide="chart-column"></i>Relatórios</a>
+    </nav>
+    <div class="account"><div class="avatar" aria-hidden="true" id="avatar">•</div><div><strong id="user-name">Carregando…</strong><small id="role-badge"></small></div><button id="logout" class="logout"><i data-lucide="log-out"></i>Sair</button></div>
+  </aside>
+  <main id="main" class="workspace">
+    <header class="page-header"><div><p class="eyebrow">PAINEL ANALÍTICO</p><h1>Dashboard de Amostragem</h1><p>Acompanhe o desempenho da sua equipe, o andamento das validações e os principais indicadores.</p></div><button id="add" class="primary" disabled><i data-lucide="plus"></i>Adicionar registro</button></header>
+    <form id="filters" class="filters" aria-label="Filtros do painel">
+      <fieldset><legend>Período de atualização</legend><label>De<input type="date" id="from"></label><label>Até<input type="date" id="to"></label></fieldset>
+      <label>Coordenador<select id="coordinator"><option value="">Todos os coordenadores</option></select></label>
+      <button type="button" id="clear" class="secondary">Limpar filtros</button><button type="button" id="refresh" class="secondary">Atualizar dados</button>
+      <p class="filter-note">O período considera a última atualização de cada registro, não a data de cada contato.</p>
+    </form>
+    <div id="message" class="notice" role="status" aria-live="polite">Carregando seus dados…</div>
+    <div id="dashboard" hidden>
+      <section id="kpis" class="kpis" aria-label="Indicadores principais"></section>
+      <section class="overview" id="operation"><article class="panel"><h2><i data-lucide="filter"></i>Funil de amostragem</h2><p class="subtitle">Da base total até os confirmados</p><div id="funnel" class="funnel"></div></article><article class="panel"><h2><i data-lucide="user-round"></i>Desempenho do coordenador</h2><div id="coordinator-performance"></div></article></section>
+      <section class="panel matrix" id="matrix"><div class="section-heading"><div><h2><i data-lucide="table-2"></i>Matriz de Amostragem</h2><p class="subtitle">Acompanhe o desempenho por coordenador e líder. Edite pelos botões de ações.</p></div><span id="record-count" class="muted"></span></div>
+        <div class="table-scroll" tabindex="0" role="region" aria-label="Tabela de amostragem, role horizontalmente para ver todas as colunas"><table><caption class="sr-only">Resultados da amostragem conforme os filtros selecionados</caption><thead><tr><th scope="col">Coordenador</th><th scope="col">Líder</th><th scope="col">Total base</th><th scope="col">Contatados</th><th scope="col">Confirmados</th><th scope="col">Não confirmados</th><th scope="col">Não conhece</th><th scope="col">Cx. postal</th><th scope="col">Cobertura</th><th scope="col">% Confirmação</th><th scope="col">Ações</th></tr></thead><tbody id="rows"></tbody><tfoot id="totals"></tfoot></table></div>
+      </section>
+      <section class="charts" id="reports"><article class="panel"><h2><i data-lucide="trophy"></i>Top líderes</h2><p class="subtitle">Líderes com maior taxa de confirmação</p><div id="ranking" class="ranking"></div></article><article class="panel"><h2><i data-lucide="chart-column"></i>Índice de confirmação por líder</h2><p class="subtitle">Percentual dos contatados que confirmaram</p><div class="chart-wrap"><canvas id="confirmation-chart" role="img" aria-label="Taxas por líder; valores também disponíveis em Top líderes"></canvas></div></article><article class="panel"><h2><i data-lucide="chart-pie"></i>Distribuição por status</h2><p id="status-total" class="subtitle"></p><div class="distribution"><div class="donut-wrap"><canvas id="status-chart" role="img" aria-label="Distribuição por status; valores disponíveis na legenda abaixo"></canvas></div><div id="status-legend"></div></div></article></section>
+      <section class="panel exports"><div><h2>Exportar relatórios</h2><p class="subtitle">Excel e XML seguem os filtros. O backup JSON e o resumo do dia incluem toda a base carregada.</p></div><div class="export-buttons"><button data-export="excel" class="secondary">Salvar Excel</button><button data-export="xml" class="secondary">Exportar XML</button><button data-export="json" class="secondary">Backup JSON</button><button data-export="daily" class="primary">Resumo do dia · Excel</button></div></section>
+    </div>
   </main>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="config.js"></script><script src="analytics-metrics.js"></script><script src="app.js"></script>
-</body></html>
+  <dialog id="record-dialog" aria-labelledby="dialog-title"><form id="record-form"><div class="section-heading"><h2 id="dialog-title">Adicionar registro</h2><button type="button" id="close-dialog" class="icon-button" aria-label="Fechar">×</button></div><div id="form-fields" class="form-grid"></div><p id="form-error" class="form-error" role="alert"></p><div class="dialog-footer"><button type="button" id="cancel-dialog" class="secondary">Cancelar</button><button id="save-record" class="primary">Salvar registro</button></div></form></dialog>
+  <dialog id="details-dialog" aria-labelledby="details-title"><h2 id="details-title">Detalhes do registro</h2><dl id="details-content"></dl><button id="close-details" class="secondary">Fechar</button></dialog>
+</body>
+</html>
