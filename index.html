@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Painel | Controle de Amostragem</title>
+  <script src="https://cdn.tailwindcss.com"></script><script src="https://cdn.jsdelivr.net/npm/chart.js"></script><script src="https://unpkg.com/lucide@latest"></script>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="bg-slate-100 text-slate-800 p-4 md:p-8">
+  <main class="max-w-7xl mx-auto space-y-6">
+    <header class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between card p-6">
+      <div class="flex items-center gap-4"><div class="p-3 rounded-xl bg-blue-600 text-white"><i data-lucide="activity"></i></div><div><h1 class="font-bold text-xl text-slate-900">Painel de Controle de Qualidade</h1><p class="text-sm text-slate-500">Acompanhamento e métricas de amostragem</p></div></div>
+      <div class="flex items-center gap-3"><span id="user-name" class="text-sm font-semibold"></span><span id="role-badge" class="badge"></span><button id="logout" class="button-secondary">Sair</button></div>
+    </header>
+    <section class="card p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-4"><label class="text-sm font-semibold">Filtrar coordenador <select id="filter" class="input mt-1"></select></label><p id="info" class="text-sm text-slate-500"></p></section>
+    <section><h2 class="label mb-3">Resumo por coordenador</h2><div id="cards" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div></section>
+    <section class="card overflow-hidden"><div class="p-5 border-b flex items-center justify-between"><div><h2 class="font-bold text-slate-900">Matriz de Amostragem</h2><p class="text-xs text-slate-500">As alterações são salvas para todos os usuários.</p></div><button id="add" class="button-primary">Adicionar registro</button></div><div class="overflow-x-auto"><table class="w-full min-w-[1080px] text-sm"><thead><tr><th>Coordenador</th><th>Líder</th><th>Total base</th><th>Confirmado</th><th>Não conf.</th><th>Não conhece</th><th>Cx. postal</th><th>Contatadas</th><th>% confirmação</th><th id="actions-head">Ações</th></tr></thead><tbody id="rows"></tbody><tfoot id="totals"></tfoot></table></div></section>
+    <section class="grid grid-cols-1 lg:grid-cols-3 gap-6"><div class="card p-6"><h2 class="font-bold">Top líderes</h2><div id="ranking" class="mt-4 space-y-2"></div></div><div class="card p-6 lg:col-span-2"><h2 class="font-bold">Índice de confirmação por líder</h2><div class="h-72 mt-4"><canvas id="chart"></canvas></div></div></section>
+  </main>
+  <template id="new-row"><tr data-id=""><td><input data-field="coordinator" class="cell"></td><td><input data-field="leader" class="cell"></td><td><input data-field="total_base" type="number" min="0" class="cell"></td><td><input data-field="confirmed" type="number" min="0" class="cell"></td><td><input data-field="not_confirmed" type="number" min="0" class="cell"></td><td><input data-field="does_not_know" type="number" min="0" class="cell"></td><td><input data-field="mailbox" type="number" min="0" class="cell"></td><td data-value="contacted"></td><td data-value="rate"></td><td><button data-delete class="text-rose-600 font-semibold">Excluir</button></td></tr></template>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="config.js"></script><script src="app.js"></script>
+</body>
+</html>
