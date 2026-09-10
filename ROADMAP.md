@@ -38,3 +38,6 @@ analytics-service.js concentra o acesso aos registros. A apresentação usa regi
 7. **Metas:** definir valores e persistência caso a equipe deseje metas por coordenador, líder ou período.
 
 Não foram criadas páginas vazias de Pessoas ou Configurações. Operação e Relatórios levam a seções funcionais do painel.
+
+## Entrega: relatórios de fechamento
+Central, PDF, Excel, gráficos, rankings, observações e resumo copiável implementados. Geração local sem aumentar o banco. Histórico e envio automático continuam futuros. Detalhes e validações em RELATORIOS.md. Contratação de Supabase Pro será avaliada separadamente com o cliente.

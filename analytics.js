@@ -20,6 +20,7 @@
     if (!chartsAvailable) warnings.push('Os gráficos não carregaram. Os valores continuam disponíveis na tabela e nas listas. Atualize a página para tentar novamente.');
     message(warnings.join(' '), warnings.length ? 'error' : '');
     icons();
+    window.SamplingReportCenter?.update();
   }
   function filterOptions() {
     const selected = $('#coordinator').value;
@@ -110,5 +111,6 @@
     } catch (error) { message(`Não foi possível abrir o painel: ${error.message}. Use Atualizar dados para tentar novamente.`, 'error'); }
     finally { $('#refresh').disabled = false; icons(); }
   }
+  window.SamplingReportCenter?.mount(() => ({records,visible,coordinator:$('#coordinator').value,from:$('#from').value,to:$('#to').value}));
   start();
 })();

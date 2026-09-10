@@ -10,7 +10,11 @@
   <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script defer src="config.js"></script><script defer src="analytics-metrics.js"></script>
   <script defer src="analytics-service.js"></script><script defer src="analytics-components.js"></script>
-  <script defer src="analytics-exports.js"></script><script defer src="analytics.js"></script>
+  <script defer src="analytics-exports.js"></script>
+  <script defer src="vendor/jszip.min.js"></script><script defer src="vendor/pdf-lib.min.js"></script>
+  <script defer src="report-model.js"></script><script defer src="report-charts.js"></script>
+  <script defer src="report-excel.js"></script><script defer src="report-pdf.js"></script><script defer src="report-center.js"></script>
+  <script defer src="analytics.js"></script>
 </head>
 <body>
   <a class="skip" href="#main">Pular para o conteúdo</a>
@@ -40,7 +44,17 @@
         <div class="table-scroll" tabindex="0" role="region" aria-label="Tabela de amostragem, role horizontalmente para ver todas as colunas"><table><caption class="sr-only">Resultados da amostragem conforme os filtros selecionados</caption><thead><tr><th scope="col">Coordenador</th><th scope="col">Líder</th><th scope="col">Total base</th><th scope="col">Contatados</th><th scope="col">Confirmados</th><th scope="col">Não confirmados</th><th scope="col">Não conhece</th><th scope="col">Cx. postal</th><th scope="col">Cobertura</th><th scope="col">% Confirmação</th><th scope="col">Ações</th></tr></thead><tbody id="rows"></tbody><tfoot id="totals"></tfoot></table></div>
       </section>
       <section class="charts" id="reports"><article class="panel"><h2><i data-lucide="trophy"></i>Top líderes</h2><p class="subtitle">Líderes com maior taxa de confirmação</p><div id="ranking" class="ranking"></div></article><article class="panel"><h2><i data-lucide="chart-column"></i>Índice de confirmação por líder</h2><p class="subtitle">Percentual dos contatados que confirmaram</p><div class="chart-wrap"><canvas id="confirmation-chart" role="img" aria-label="Taxas por líder; valores também disponíveis em Top líderes"></canvas></div></article><article class="panel"><h2><i data-lucide="chart-pie"></i>Distribuição por status</h2><p id="status-total" class="subtitle"></p><div class="distribution"><div class="donut-wrap"><canvas id="status-chart" role="img" aria-label="Distribuição por status; valores disponíveis na legenda abaixo"></canvas></div><div id="status-legend"></div></div></article></section>
-      <section class="panel exports"><div><h2>Exportar relatórios</h2><p class="subtitle">Excel e XML seguem os filtros. O backup JSON e o resumo do dia incluem toda a base carregada.</p></div><div class="export-buttons"><button data-export="excel" class="secondary">Salvar Excel</button><button data-export="xml" class="secondary">Exportar XML</button><button data-export="json" class="secondary">Backup JSON</button><button data-export="daily" class="primary">Resumo do dia · Excel</button></div></section>
+      <section class="panel report-center" id="report-center" aria-labelledby="report-title" aria-busy="false">
+        <div class="section-heading"><div><p class="eyebrow">FECHAMENTO DA EQUIPE</p><h2 id="report-title">Central de relatórios</h2><p class="subtitle">Prepare PDF, Excel e um resumo para compartilhar no fim do dia.</p></div><span class="local-label">Download direto · sem gravar no banco</span></div>
+        <div class="report-controls"><label>Dados do relatório<select id="report-scope"><option value="filtered">Usar filtros do painel</option><option value="all">Toda a base</option></select></label><label>Mínimo de contatos para rankings percentuais<input id="report-minimum" type="number" min="0" step="1" value="0"><small>0 = desativado. Não altera os totais nem o ranking por volume.</small></label></div>
+        <p id="report-scope-detail" class="muted"></p><div id="report-preview" class="report-preview" aria-live="polite"></div>
+        <label class="report-notes">Observações do fechamento <textarea id="report-notes" rows="3" maxlength="3000" placeholder="Pendências, orientações e observações para a equipe (opcional)"></textarea></label>
+        <p class="subtitle">Retrato dos dados carregados. O período considera a atualização dos registros, não a produção exclusiva do dia. Os gráficos no Excel são imagens incorporadas.</p>
+        <div class="export-buttons"><button data-report="pdf" class="primary">Baixar PDF executivo</button><button data-report="excel" class="secondary">Baixar Excel completo</button><button data-report="copy" class="secondary">Copiar resumo para envio</button><button data-report="xml" class="secondary">Exportar XML</button><button data-report="json" class="secondary">Backup JSON integral</button></div>
+        <p class="subtitle">PDF, Excel e XML seguem o escopo escolhido. O backup JSON sempre inclui toda a base carregada.</p>
+        <p id="report-status" role="status" aria-live="polite"></p>
+        <div id="report-text-wrap" hidden><label for="report-text">Resumo para copiar</label><textarea id="report-text" rows="12" readonly></textarea></div>
+      </section>
     </div>
   </main>
   <dialog id="record-dialog" aria-labelledby="dialog-title"><form id="record-form"><div class="section-heading"><h2 id="dialog-title">Adicionar registro</h2><button type="button" id="close-dialog" class="icon-button" aria-label="Fechar">×</button></div><div id="form-fields" class="form-grid"></div><p id="form-error" class="form-error" role="alert"></p><div class="dialog-footer"><button type="button" id="cancel-dialog" class="secondary">Cancelar</button><button id="save-record" class="primary">Salvar registro</button></div></form></dialog>
