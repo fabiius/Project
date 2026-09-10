@@ -3,6 +3,8 @@
   "private": true,
   "version": "1.0.0",
   "scripts": {
-    "start": "npx serve ."
+    "start": "npx serve .",
+    "check": "node scripts/check.cjs",
+    "test": "node --test tests/*.test.cjs"
   }
 }

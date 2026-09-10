@@ -10,7 +10,7 @@
   <main class="max-w-7xl mx-auto space-y-6">
     <header class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between card p-6">
       <div class="flex items-center gap-4"><div class="p-3 rounded-xl bg-blue-600 text-white"><i data-lucide="activity"></i></div><div><h1 class="font-bold text-xl text-slate-900">Painel de Controle de Qualidade</h1><p class="text-sm text-slate-500">Acompanhamento e métricas de amostragem</p></div></div>
-      <div class="flex items-center gap-3"><span id="user-name" class="text-sm font-semibold"></span><span id="role-badge" class="badge"></span><button id="logout" class="button-secondary">Sair</button></div>
+      <div class="flex items-center gap-3"><a href="painel-analitico.html" class="button-primary">Painel Analítico</a><span id="user-name" class="text-sm font-semibold"></span><span id="role-badge" class="badge"></span><button id="logout" class="button-secondary">Sair</button></div>
     </header>
     <section class="card p-4 flex flex-wrap gap-2 justify-between items-center"><div class="flex flex-wrap gap-2"><button onclick="salvarExcel()" class="button-primary">Salvar (Excel)</button><button onclick="exportarXML()" class="button-secondary">Exportar XML</button><button onclick="exportarBackupJSON()" class="button-secondary">Baixar dados (JSON)</button></div><button onclick="baixarResumoDoDiaExcel()" class="button-primary">Baixar resumo do dia (Excel)</button></section>
     <section class="card p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-4"><label class="text-sm font-semibold">Filtrar coordenador <select id="filter" class="input mt-1"></select></label><p id="info" class="text-sm text-slate-500"></p></section>
@@ -18,5 +18,5 @@
     <section class="card overflow-hidden"><div class="p-5 border-b flex items-center justify-between"><div><h2 class="font-bold text-slate-900">Matriz de Amostragem</h2><p class="text-xs text-slate-500">As alterações são salvas para todos os usuários.</p></div><button id="add" class="button-primary">Adicionar registro</button></div><div class="overflow-x-auto"><table class="w-full min-w-[1080px] text-sm"><thead><tr><th>Coordenador</th><th>Líder</th><th>Total base</th><th>Confirmado</th><th>Não conf.</th><th>Não conhece</th><th>Cx. postal</th><th>Contatadas</th><th>% confirmação</th><th>Ações</th></tr></thead><tbody id="rows"></tbody><tfoot id="totals"></tfoot></table></div></section>
     <section class="grid grid-cols-1 lg:grid-cols-3 gap-6"><div class="card p-6"><h2 class="font-bold">Top líderes</h2><div id="ranking" class="mt-4 space-y-2"></div></div><div class="card p-6 lg:col-span-2"><h2 class="font-bold">Índice de confirmação por líder</h2><div class="h-72 mt-4"><canvas id="chart"></canvas></div></div></section>
   </main>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="config.js"></script><script src="app.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="config.js"></script><script src="analytics-metrics.js"></script><script src="app.js"></script>
 </body></html>

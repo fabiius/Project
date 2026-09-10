@@ -3,8 +3,8 @@
   const db = window.supabase.createClient(cfg.SUPABASE_URL, cfg.SUPABASE_ANON_KEY), fields = ['coordinator','leader','total_base','confirmed','not_confirmed','does_not_know','mailbox'], numeric = new Set(fields.slice(2));
   let records = [], selected = 'ALL', admin = false, chart;
   const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
-  const contacted = r => (+r.confirmed||0)+(+r.not_confirmed||0)+(+r.does_not_know||0)+(+r.mailbox||0);
-  const rate = r => contacted(r) ? (+r.confirmed||0)*100/contacted(r) : 0;
+  const contacted = window.SamplingMetrics.contacted;
+  const rate = r => window.SamplingMetrics.calculateConfirmationRate(contacted(r), +r.confirmed || 0);
   const shown = () => selected === 'ALL' ? records : records.filter(r => r.coordinator === selected);
   async function start() {
     const {data:{session}} = await db.auth.getSession(); if (!session) { location.replace('login.html'); return; }
@@ -15,8 +15,8 @@
   }
   async function load() { const {data,error}=await db.from('sample_records').select('*').order('id'); if(error) return alert('Erro ao carregar: '+error.message); records=data; render(); }
   function render() {
-    const data=shown(), select=document.querySelector('#filter'), names=[...new Set(records.map(r=>r.coordinator).filter(Boolean))].sort((a,b)=>a.localeCompare(b));
-    if(!names.includes(selected)) selected='ALL'; select.innerHTML=`<option value="ALL">Todos os coordenadores</option>${names.map(n=>`<option value="${esc(n)}">${esc(n)}</option>`).join('')}`; select.value=selected;
+    let data; const select=document.querySelector('#filter'), names=[...new Set(records.map(r=>r.coordinator).filter(Boolean))].sort((a,b)=>a.localeCompare(b));
+    if(!names.includes(selected)) selected='ALL'; data=shown(); select.innerHTML=`<option value="ALL">Todos os coordenadores</option>${names.map(n=>`<option value="${esc(n)}">${esc(n)}</option>`).join('')}`; select.value=selected;
     document.querySelector('#info').textContent=`${data.length} registro${data.length===1?'':'s'} exibido${data.length===1?'':'s'}`; rows(data); cards(data); ranking(data); graph(data); lucide.createIcons();
   }
   function rows(data) {
@@ -25,10 +25,22 @@
     const t=data.reduce((a,r)=>({total_base:a.total_base+(+r.total_base||0),confirmed:a.confirmed+(+r.confirmed||0),not_confirmed:a.not_confirmed+(+r.not_confirmed||0),does_not_know:a.does_not_know+(+r.does_not_know||0),mailbox:a.mailbox+(+r.mailbox||0)}),{total_base:0,confirmed:0,not_confirmed:0,does_not_know:0,mailbox:0});
     document.querySelector('#totals').innerHTML=`<tr class="bg-slate-50 font-bold"><td colspan="2">Consolidado</td><td>${t.total_base}</td><td>${t.confirmed}</td><td>${t.not_confirmed}</td><td>${t.does_not_know}</td><td>${t.mailbox}</td><td>${contacted(t)}</td><td>${rate(t).toFixed(1).replace('.',',')}%</td><td></td></tr>`;
   }
-  function cards(data) { const groups={}; data.forEach(r=>(groups[r.coordinator||'Sem coordenador']??=[]).push(r)); document.querySelector('#cards').innerHTML=Object.entries(groups).map(([n,list])=>{const base=list.reduce((x,r)=>x+(+r.total_base||0),0), c=list.reduce((x,r)=>x+contacted(r),0), ok=list.reduce((x,r)=>x+(+r.confirmed||0),0), s=base?c*100/base:0; return `<article class="card p-5"><div class="flex justify-between"><div><h3 class="font-bold">${esc(n)}</h3><p class="text-xs text-slate-500">${list.length} líder(es)</p></div><span class="badge">${c?(ok*100/c).toFixed(1).replace('.',','):'0,0'}%</span></div><p class="mt-4 text-sm">Amostragem: <strong>${c} / ${base}</strong> (${s.toFixed(0)}%)</p><div class="mt-2 h-2 rounded-full bg-slate-100"><div class="h-full bg-blue-600" style="width:${Math.min(s,100)}%"></div></div></article>`;}).join('')||'<p class="text-slate-500">Nenhum registro.</p>'; }
+  function cards(data) { const groups=Object.create(null); data.forEach(r=>(groups[r.coordinator||'Sem coordenador']??=[]).push(r)); document.querySelector('#cards').innerHTML=Object.entries(groups).map(([n,list])=>{const base=list.reduce((x,r)=>x+(+r.total_base||0),0), c=list.reduce((x,r)=>x+contacted(r),0), ok=list.reduce((x,r)=>x+(+r.confirmed||0),0), s=base?c*100/base:0; return `<article class="card p-5"><div class="flex justify-between"><div><h3 class="font-bold">${esc(n)}</h3><p class="text-xs text-slate-500">${list.length} líder(es)</p></div><span class="badge">${c?(ok*100/c).toFixed(1).replace('.',','):'0,0'}%</span></div><p class="mt-4 text-sm">Amostragem: <strong>${c} / ${base}</strong> (${s.toFixed(0)}%)</p><div class="mt-2 h-2 rounded-full bg-slate-100"><div class="h-full bg-blue-600" style="width:${Math.min(s,100)}%"></div></div></article>`;}).join('')||'<p class="text-slate-500">Nenhum registro.</p>'; }
   function ranking(data) { document.querySelector('#ranking').innerHTML=[...data].sort((a,b)=>rate(b)-rate(a)).map((r,i)=>`<div class="flex justify-between rounded-xl bg-slate-50 p-3"><span><strong class="mr-2 text-blue-600">${i+1}º</strong>${esc(r.leader)}</span><strong>${rate(r).toFixed(1).replace('.',',')}%</strong></div>`).join('')||'<p class="text-sm text-slate-500">Sem dados.</p>'; }
   function graph(data) { if(chart)chart.destroy(); chart=new Chart(document.querySelector('#chart'),{type:'bar',data:{labels:data.map(r=>r.leader),datasets:[{data:data.map(rate),backgroundColor:'#2563eb',borderRadius:6}]},options:{maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,max:100,ticks:{callback:v=>v+'%'}},x:{grid:{display:false}}}}}); }
-  async function save(e) { const id=+e.target.closest('tr').dataset.id, field=e.target.dataset.field, value=numeric.has(field)?Math.max(0,Number(e.target.value)||0):e.target.value.trim(), {error}=await db.from('sample_records').update({[field]:value,updated_at:new Date().toISOString()}).eq('id',id); if(error){alert('Não foi possível salvar: '+error.message);return load();} Object.assign(records.find(r=>r.id===id),{[field]:value});render(); }
+  async function save(e) {
+    const id=+e.target.closest('tr').dataset.id, field=e.target.dataset.field;
+    const value=numeric.has(field)?Number(e.target.value):e.target.value.trim();
+    const candidate={...records.find(r=>r.id===id),[field]:value};
+    const validation=window.SamplingMetrics.validate(candidate);
+    if(validation){alert(validation);render();return;}
+    e.target.disabled=true;
+    try {
+      const {error}=await db.from('sample_records').update({[field]:value,updated_at:new Date().toISOString()}).eq('id',id);
+      if(error)throw error;
+      Object.assign(records.find(r=>r.id===id),{[field]:value});render();
+    } catch(error){alert('Não foi possível salvar: '+error.message);await load();}
+  }
   async function add(){const {data,error}=await db.from('sample_records').insert({coordinator:selected==='ALL'?'Novo Coordenador':selected,leader:'Novo Líder'}).select().single();if(error)return alert(error.message);records.push(data);render();}
   async function remove(id){if(!confirm('Excluir este registro?'))return;const {error}=await db.from('sample_records').delete().eq('id',id);if(error)return alert('Apenas o administrador pode excluir.');records=records.filter(r=>r.id!==id);render();}
   const stamp=()=>new Date().toISOString().slice(0,10), download=(s,n,t)=>{const u=URL.createObjectURL(new Blob([s],{type:t})),a=document.createElement('a');a.href=u;a.download=n;a.click();URL.revokeObjectURL(u);}, exportRows=data=>data.map(r=>({'Coordenador':r.coordinator||'','Líder':r.leader||'','Total Base':+r.total_base||0,'Confirmado':+r.confirmed||0,'Não Confirmado':+r.not_confirmed||0,'Não Conhece Líder':+r.does_not_know||0,'Caixa Postal':+r.mailbox||0,'Contatadas':contacted(r),'% Confirmação':`${rate(r).toFixed(1)}%`}));
