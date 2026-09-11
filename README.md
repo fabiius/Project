@@ -3,7 +3,7 @@
 ## Publicar esta atualização
 
 1. Extraia o ZIP.
-2. Envie todo o conteúdo da pasta Amostragem para a raiz da branch publicada pela Vercel, incluindo a pasta **vendor** e todos os arquivos **report-*.js**.
+2. Envie todos os arquivos da pasta Amostragem para a raiz da branch publicada pela Vercel, incluindo `jszip.min.js`, `pdf-lib.min.js` e todos os arquivos `report-*.js`. Esta versão não depende de subpastas.
 3. Preserve sua configuração de publicação e a conexão Supabase atualmente utilizada. config.js no pacote é a cópia local preservada.
 4. Confirme o commit e aguarde a implantação.
 5. Entre no sistema e abra **Relatórios**, no Painel Analítico. A central está abaixo dos gráficos.
