@@ -1,50 +1,14 @@
 (() => {
-  'use strict';
-  let client;
-  const n = value => Number(value) || 0;
-  const contacted = row => n(row.confirmed) + n(row.not_confirmed) + n(row.does_not_know) + n(row.mailbox);
-  const key = row => `${row.coordinator || ''}\u0000${row.leader || ''}`;
-  const db = () => {
-    const cfg = window.APP_CONFIG || {};
-    if (!cfg.SUPABASE_URL || !cfg.SUPABASE_ANON_KEY || cfg.SUPABASE_URL.includes('COLE_AQUI')) throw new Error('A conexão com o Supabase não foi configurada.');
-    return client || (client = window.supabase.createClient(cfg.SUPABASE_URL, cfg.SUPABASE_ANON_KEY));
-  };
-  const unwrap = response => { if (response.error) throw response.error; return response.data; };
-  async function list(table, order) {
-    const rows = [];
-    for (let start = 0; ; start += 500) {
-      const page = unwrap(await db().from(table).select('*').order(order).range(start, start + 499));
-      rows.push(...page); if (page.length < 500) return rows;
-    }
-  }
-  function aggregate(base, daily) {
-    const groups = new Map();
-    base.forEach(row => {
-      const id = key(row);
-      if (!groups.has(id)) groups.set(id, { coordinator:row.coordinator || '', leader:row.leader || '', total_base:0, confirmed:0, not_confirmed:0, does_not_know:0, mailbox:0 });
-      groups.get(id).total_base += n(row.total_base);
-    });
-    daily.forEach(row => {
-      const id = key(row);
-      if (!groups.has(id)) groups.set(id, { coordinator:row.coordinator || '', leader:row.leader || '', total_base:0, confirmed:0, not_confirmed:0, does_not_know:0, mailbox:0 });
-      const target = groups.get(id);
-      ['confirmed','not_confirmed','does_not_know','mailbox'].forEach(field => target[field] += n(row[field]));
-    });
-    return [...groups.values()].map(row => ({ ...row, contacted:contacted(row), pending:n(row.total_base) - contacted(row) }));
-  }
-  function summary(rows) {
-    const total = rows.reduce((out, row) => { ['total_base','confirmed','not_confirmed','does_not_know','mailbox'].forEach(field => out[field] += n(row[field])); return out; }, {total_base:0,confirmed:0,not_confirmed:0,does_not_know:0,mailbox:0});
-    total.contacted = contacted(total); total.pending = total.total_base - total.contacted;
-    total.coverage = total.total_base ? total.contacted / total.total_base * 100 : 0;
-    total.confirmation = total.contacted ? total.confirmed / total.contacted * 100 : 0;
-    return total;
-  }
-  window.DailyData = {
-    n, contacted, aggregate, summary,
-    async session() { return unwrap(await db().auth.getSession()).session; },
-    async profile(id) { return unwrap(await db().from('profiles').select('display_name,role').eq('id', id).single()); },
-    async load() { const [base, daily] = await Promise.all([list('sample_records','id'), list('daily_records','record_date')]); return {base,daily}; },
-    async saveDaily(id, value) { const query = id ? db().from('daily_records').update({...value,updated_at:new Date().toISOString()}).eq('id',id) : db().from('daily_records').insert(value); return unwrap(await query.select().single()); },
-    async signOut() { unwrap(await db().auth.signOut()); }
-  };
+'use strict';
+let client;const db=()=>client||(client=window.supabase.createClient(window.APP_CONFIG.SUPABASE_URL,window.APP_CONFIG.SUPABASE_ANON_KEY));
+const unwrap=r=>{if(r.error)throw r.error;return r.data;};
+async function all(table){const rows=[];for(let offset=0;;offset+=500){const r=await db().from(table).select('*').order('id').range(offset,offset+499);if(r.error){if(table==='daily_records')throw new Error('Execute ATUALIZACAO-DIARIA-V2.sql no Supabase para habilitar o histórico diário.');throw r.error;}rows.push(...r.data);if(r.data.length<500)return rows;}}
+window.DailyData={
+ async session(){return unwrap(await db().auth.getSession()).session;},
+ async profile(id){return unwrap(await db().from('profiles').select('display_name,role').eq('id',id).single());},
+ async load(){const base=await all('sample_records'),daily=await all('daily_records');if(daily.some(d=>d.record_id==null))throw new Error('Execute ATUALIZACAO-DIARIA-V2.sql para atualizar o histórico existente.');const byId=new Map(base.map(b=>[String(b.id),b]));return {base,daily:daily.map(d=>({...d,coordinator:byId.get(String(d.record_id))?.coordinator||d.coordinator,leader:byId.get(String(d.record_id))?.leader||d.leader}))};},
+ async saveDaily(id,value){const query=id==null?db().from('daily_records').insert(value):db().from('daily_records').update(value).eq('id',id);return unwrap(await query.select().single());},
+ async removeDaily(id){const rows=unwrap(await db().from('daily_records').delete().eq('id',id).select('id'));if(!rows.length)throw new Error('Exclusão não autorizada.');},
+ async signOut(){unwrap(await db().auth.signOut());}
+};
 })();

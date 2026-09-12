@@ -1,6 +1,61 @@
-(() => {'use strict';const A=window.AppLayout,D=window.DailyData,$=s=>document.querySelector(s);let base=[],daily=[],totals=[];
-  const today=()=>new Date().toLocaleDateString('en-CA');const num=(form,name)=>Math.max(0,Number(form.elements[name].value)||0);const selected=()=>({coordinator:$('#coordinator').value,leader:$('#leader').value});
-  function leaders(){const coordinator=$('#coordinator').value;const rows=base.filter(r=>r.coordinator===coordinator);$('#leader').innerHTML=rows.map(r=>`<option value="${A.esc(r.leader)}">${A.esc(r.leader)}</option>`).join('');projection();}
-  function projection(){const choice=selected(), current=totals.find(r=>r.coordinator===choice.coordinator&&r.leader===choice.leader)||{total_base:0,contacted:0,confirmed:0,pending:0};const f=$('#entry-form'), add=['confirmed','not_confirmed','does_not_know','mailbox'].reduce((x,k)=>x+num(f,k),0), ok=num(f,'confirmed'), after={contacted:current.contacted+add,confirmed:current.confirmed+ok};after.pending=current.total_base-after.contacted;after.coverage=current.total_base?after.contacted/current.total_base*100:0;after.confirmation=after.contacted?after.confirmed/after.contacted*100:0;$('#base-note').textContent=`Base do líder: ${A.integer(current.total_base)} pessoas · ${A.integer(current.pending)} ainda por contatar`;$('#projection').innerHTML=[['Contatados',current.contacted,after.contacted],['Confirmados',current.confirmed,after.confirmed],['Pendentes',current.pending,after.pending],['Cobertura',A.percent(current.total_base?current.contacted/current.total_base*100:0),A.percent(after.coverage)],['Taxa de confirmação',A.percent(current.contacted?current.confirmed/current.contacted*100:0),A.percent(after.confirmation)]].map(r=>`<div class="projection-row"><span>${r[0]}</span><b>${r[1]}</b><i>→</i><strong>${r[2]}</strong></div>`).join('');return {current,add};}
-  function history(){ $('#history').innerHTML=[...daily].sort((a,b)=>b.record_date.localeCompare(a.record_date)||b.id-a.id).map(r=>`<tr><td>${new Date(r.record_date+'T12:00:00').toLocaleDateString('pt-BR')}</td><td>${A.esc(r.coordinator)}</td><td>${A.esc(r.leader)}</td><td>${A.integer(D.contacted(r))}</td><td>${A.integer(r.confirmed)}</td><td>${A.esc(r.notes || '—')}</td></tr>`).join('')||'<tr><td colspan="6" class="empty">Ainda não há lançamentos diários.</td></tr>';}
-  async function start(){try{if(!await A.setup())return;({base,daily}=await D.load());totals=D.aggregate(base,daily);const coordinators=[...new Set(base.map(r=>r.coordinator))].filter(Boolean).sort();$('#coordinator').innerHTML=coordinators.map(x=>`<option value="${A.esc(x)}">${A.esc(x)}</option>`).join('');$('#record-date').value=today();leaders();history();$('#notice').hidden=true;$('#content').hidden=false;$('#coordinator').onchange=leaders;$('#leader').onchange=projection;$('#entry-form').oninput=projection;$('#entry-form').onsubmit=async e=>{e.preventDefault();const p=projection(), f=e.target;if(!p.current.total_base){$('#form-error').textContent='Escolha um líder que tenha base cadastrada.';return;}if(p.add<=0){$('#form-error').textContent='Informe pelo menos um contato realizado no dia.';return;}if(p.add>p.current.pending){$('#form-error').textContent=`O lançamento ultrapassa o saldo de ${A.integer(p.current.pending)} pessoas pendentes.`;return;}const data=Object.fromEntries(new FormData(f));['confirmed','not_confirmed','does_not_know','mailbox'].forEach(k=>data[k]=num(f,k));data.notes=data.notes.trim();$('#save').disabled=true;try{const saved=await D.saveDaily(null,data);daily.push(saved);totals=D.aggregate(base,daily);f.reset();$('#record-date').value=today();projection();history();$('#form-error').textContent='Lançamento salvo com sucesso.';$('#form-error').className='success-message';}catch(error){$('#form-error').textContent=`Não foi possível salvar: ${error.message}`;$('#form-error').className='form-error';}finally{$('#save').disabled=false;}};}catch(e){$('#notice').textContent=`Não foi possível carregar os dados: ${e.message}`;$('#notice').classList.add('error');}}start();})();
+(() => {
+'use strict';
+const A=window.AppLayout,D=window.DailyData,M=window.DailyModel,$=s=>document.querySelector(s);
+let base=[],daily=[],editing=null,admin=false,busy=false;
+const form=$('#entry-form');
+function current(){return base.find(b=>String(b.id)===$('#leader').value);}
+function payload(){return {record_id:Number($('#leader').value),record_date:form.elements.record_date.value,...Object.fromEntries(M.fields.map(k=>[k,Number(form.elements[k].value)])),notes:form.elements.notes.value.trim()};}
+function projection(){
+ const b=current();if(!b){$('#base-note').textContent='Cadastre um novo líder / base para começar.';$('#projection').innerHTML='';$('#save').disabled=true;return;}
+ $('#save').disabled=busy;
+ const list=daily.filter(d=>String(d.record_id)===String(b.id)),before=M.stats(Number(b.total_base),list);
+ const after=M.stats(Number(b.total_base),[...list.filter(d=>String(d.id)!==String(editing)),payload()]);
+ $('#base-note').textContent='Base: '+A.integer(b.total_base)+' pessoas • '+A.integer(before.pending)+' ainda por contatar';
+ $('#projection').innerHTML=[['Contatados',before.contacted,after.contacted],['Confirmados',before.confirmed,after.confirmed],['Pendentes',before.pending,after.pending],['Cobertura',A.percent(before.coverage),A.percent(after.coverage)],['Taxa de confirmação',A.percent(before.confirmation),A.percent(after.confirmation)]].map(([label,a,b])=>'<div class="projection-row"><span>'+label+'</span><b>'+a+'</b><span>→</span><strong>'+b+'</strong></div>').join('');
+}
+function history(){
+ const rows=daily.filter(d=>String(d.record_id)===$('#leader').value).sort((a,b)=>a.record_date.localeCompare(b.record_date)||a.id-b.id);
+ let sum=0;const withTotal=rows.map(r=>({...r,sum:sum+=M.contacted(r)}));
+ $('#history').innerHTML=withTotal.reverse().map(r=>'<tr><td>'+M.dateLabel(r.record_date)+'</td><td>'+A.integer(M.contacted(r))+'</td><td>'+A.integer(r.confirmed)+'</td><td>'+A.integer(r.sum)+'</td><td>'+A.esc(r.notes||'—')+'</td><td><button class="secondary" data-edit="'+r.id+'">Editar</button> '+(admin?'<button class="secondary" data-delete="'+r.id+'">Excluir</button>':'')+'</td></tr>').join('')||'<tr><td colspan="6" class="empty">Nenhum lançamento para esta base.</td></tr>';
+}
+function reset(){
+ editing=null;M.fields.forEach(k=>form.elements[k].value=0);form.elements.notes.value='';form.elements.record_date.value=M.today();form.elements.record_date.max=M.today();
+ $('#entry-title').textContent='Produção do dia';$('#cancel-edit').hidden=true;$('#coordinator').disabled=false;$('#leader').disabled=false;$('#save').textContent='Salvar lançamento';projection();history();
+}
+function leaders(selected){
+ const rows=base.filter(b=>b.coordinator===$('#coordinator').value);
+ $('#leader').innerHTML=rows.map(b=>'<option value="'+b.id+'">'+A.esc(b.leader)+' • base '+A.integer(b.total_base)+'</option>').join('');
+ if(rows.some(b=>String(b.id)===String(selected)))$('#leader').value=String(selected);
+ reset();
+}
+async function load(){
+ const c=$('#coordinator').value,l=$('#leader').value;
+ ({base,daily}=await D.load());
+ const names=[...new Set(base.map(b=>b.coordinator))].sort((a,b)=>a.localeCompare(b,'pt-BR'));
+ $('#coordinator').innerHTML=names.map(n=>'<option>'+A.esc(n)+'</option>').join('');
+ if(names.includes(c))$('#coordinator').value=c;leaders(l);
+}
+form.addEventListener('input',projection);
+$('#coordinator').onchange=()=>leaders();
+$('#leader').onchange=reset;$('#cancel-edit').onclick=reset;
+$('#refresh').onclick=async()=>{try{await load();}catch(e){$('#form-error').textContent=e.message;}};
+form.onsubmit=async event=>{
+ event.preventDefault();if(busy)return;
+ const b=current();if(!b)return;
+ const value=payload(),error=M.validateEntry(value,b,daily,editing);
+ if(error){$('#form-error').className='form-error';$('#form-error').textContent=error;return;}
+ busy=true;$('#save').disabled=true;
+ try{await D.saveDaily(editing,value);await load();$('#form-error').className='success-message';$('#form-error').textContent='Lançamento salvo no Supabase. O acumulado foi atualizado.';}
+ catch(e){$('#form-error').className='form-error';$('#form-error').textContent='Não foi possível salvar: '+e.message;}
+ finally{busy=false;projection();}
+};
+$('#history').onclick=async event=>{
+ const edit=event.target.closest('[data-edit]'),del=event.target.closest('[data-delete]');if(busy||(!edit&&!del))return;
+ const id=(edit||del).dataset[edit?'edit':'delete'],row=daily.find(d=>String(d.id)===id);
+ if(!row)return;
+ if(edit){editing=row.id;M.fields.forEach(k=>form.elements[k].value=row[k]);form.elements.notes.value=row.notes||'';form.elements.record_date.value=row.record_date;$('#entry-title').textContent='Editar lançamento de '+M.dateLabel(row.record_date);$('#cancel-edit').hidden=false;$('#coordinator').disabled=true;$('#leader').disabled=true;$('#save').textContent='Salvar correção';projection();form.scrollIntoView({behavior:'smooth'});return;}
+ if(!admin||!confirm('Excluir o lançamento de '+M.dateLabel(row.record_date)+'? O acumulado será recalculado.'))return;
+ busy=true;try{await D.removeDaily(row.id);await load();}catch(e){$('#form-error').textContent=e.message;}finally{busy=false;projection();}
+};
+(async()=>{try{const profile=await A.setup();if(!profile)return;admin=profile.role==='admin';await load();$('#notice').hidden=true;$('#content').hidden=false;}catch(e){$('#notice').textContent=e.message;$('#notice').className='notice error';}})();
+})();

@@ -1,0 +1,37 @@
+(function(root){
+'use strict';
+const fields=['confirmed','not_confirmed','does_not_know','mailbox'];
+const num=v=>Number(v)||0;
+const contacted=r=>fields.reduce((n,k)=>n+num(r[k]),0);
+const today=()=>{const d=new Date();return [d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-');};
+const dateLabel=d=>d?d.split('-').reverse().join('/'):'Sem limite';
+function validDate(s){return /^\d{4}-\d{2}-\d{2}$/.test(s||'')&&new Date(s+'T12:00:00Z').toISOString().slice(0,10)===s;}
+function stats(base,rows){const t={total_base:base,...Object.fromEntries(fields.map(k=>[k,rows.reduce((n,r)=>n+num(r[k]),0)]))};t.contacted=contacted(t);t.pending=base-t.contacted;t.coverage=base?t.contacted/base*100:0;t.confirmation=t.contacted?t.confirmed/t.contacted*100:0;return t;}
+function report(bases,entries,options={}){
+ const {from='',to='',coordinator='',recordId=''}=options;
+ if(from&&!validDate(from)||to&&!validDate(to))throw new Error('Informe datas válidas.');
+ if(from&&to&&from>to)throw new Error('A data inicial não pode ser posterior à data final.');
+ const selected=bases.filter(b=>(!coordinator||b.coordinator===coordinator)&&(!recordId||String(b.id)===String(recordId)));
+ const ids=new Set(selected.map(b=>String(b.id)));
+ const history=entries.filter(e=>ids.has(String(e.record_id))&&(!to||e.record_date<=to));
+ const rows=history.filter(e=>!from||e.record_date>=from);
+ const base=selected.reduce((n,b)=>n+num(b.total_base),0);
+ const total=stats(base,rows),end=stats(base,history);
+ const days=new Map();
+ rows.forEach(e=>{if(!days.has(e.record_date))days.set(e.record_date,[]);days.get(e.record_date).push(e);});
+ let running=contacted(stats(0,history.filter(e=>from&&e.record_date<from)));
+ let runningConfirmed=history.filter(e=>from&&e.record_date<from).reduce((n,e)=>n+num(e.confirmed),0);
+ const daily=[...days].sort(([a],[b])=>a.localeCompare(b)).map(([date,list])=>{const t=stats(0,list);running+=t.contacted;runningConfirmed+=t.confirmed;return {...t,date,accumulated:running,accumulatedConfirmed:runningConfirmed};});
+ const leaders=selected.map(b=>({...b,...stats(num(b.total_base),rows.filter(e=>String(e.record_id)===String(b.id)))})).sort((a,b)=>b.confirmed-a.confirmed||b.contacted-a.contacted||a.leader.localeCompare(b.leader,'pt-BR'));
+ const coordinators=[...new Set(selected.map(b=>b.coordinator))].map(name=>({coordinator:name,...stats(selected.filter(b=>b.coordinator===name).reduce((n,b)=>n+num(b.total_base),0),rows.filter(e=>selected.find(b=>String(b.id)===String(e.record_id))?.coordinator===name))})).sort((a,b)=>b.confirmed-a.confirmed);
+ return {rows,total,end,daily,leaders,coordinators,base,from,to,label:!from&&!to?'Todo o período':from&&to?dateLabel(from)+' a '+dateLabel(to):from?'A partir de '+dateLabel(from):'Até '+dateLabel(to),scopeDetail:'Coordenador: '+(coordinator||'todos')+' • Líder: '+(recordId?(selected[0]?.leader||'nenhum'):'todos')};
+}
+function validateEntry(value,base,entries,editingId){
+ if(!validDate(value.record_date)||value.record_date>today())return 'Informe uma data válida, até hoje.';
+ for(const k of fields)if(!Number.isSafeInteger(Number(value[k]))||Number(value[k])<0||Number(value[k])>2147483647)return 'Use números inteiros não negativos.';
+ const previous=entries.filter(e=>String(e.record_id)===String(base.id)&&String(e.id)!==String(editingId));
+ if(contacted(stats(0,previous))+contacted(value)>num(base.total_base))return 'O lançamento ultrapassa o saldo pendente da base.';
+ return '';
+}
+const api={fields,num,contacted,today,dateLabel,validDate,stats,report,validateEntry};root.DailyModel=api;if(typeof module!=='undefined')module.exports=api;
+})(typeof window==='undefined'?globalThis:window);

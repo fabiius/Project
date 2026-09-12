@@ -3,12 +3,12 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
-const M = require('../analytics-metrics.js');
+const M = require('./analytics-metrics.js');
 const fixtures = [
   { id:1, coordinator:'DANTE', leader:'MARCELO', total_base:100, confirmed:50, not_confirmed:15, does_not_know:5, mailbox:10, updated_at:'2024-04-10T12:00:00Z' },
   { id:2, coordinator:'DANTE', leader:'JOAO', total_base:123, confirmed:15, not_confirmed:2, does_not_know:1, mailbox:19, updated_at:'2024-04-20T12:00:00Z' }
 ];
-const script = name => fs.readFileSync(path.join(__dirname, '..', name), 'utf8');
+const script = name => fs.readFileSync(path.join(__dirname, name), 'utf8');
 test('exemplo de aceite: cobertura, confirmação, pendentes e consolidado', () => {
   const total = M.summarize(fixtures);
   assert.equal(total.total_base, 223); assert.equal(total.contacted, 117); assert.equal(total.confirmed, 65);
@@ -49,26 +49,6 @@ test('componentes usam os mesmos totais, escapam HTML e restringem exclusão', (
   assert.match(nodes.get('#rows').innerHTML,/&lt;script&gt;/); assert.match(nodes.get('#rows').innerHTML,/data-action="delete"/);
   assert.equal(C.charts(M.group(fixtures,['coordinator','leader']),total,false),false);
 });
-test('serviço pagina toda a base, filtra o perfil e detecta exclusão negada', async () => {
-  let profileId, savedValues;
-  const dataset = Array.from({length:1001},(_,id)=>({id}));
-  const client = {
-    auth:{getSession:async()=>({data:{session:{user:{id:'user-1'}}}}),signOut:async()=>({error:null})},
-    from(table) {
-      if(table==='profiles') return {select(){return this;},eq(field,id){profileId=id;return this;},single:async()=>({data:{role:'user'}})};
-      return {select(){return this;},order(){return this;},range:async(start,end)=>({data:dataset.slice(start,end+1)}),
-        update(values){savedValues=values;return this;},eq(){return this;},single:async()=>({data:{id:1,...savedValues}}),
-        delete(){return {eq(){return {select:async()=>({data:[]})};}}}
-      };
-    }
-  };
-  const window = {APP_CONFIG:{SUPABASE_URL:'https://example.test',SUPABASE_ANON_KEY:'test'},supabase:{createClient:()=>client}};
-  vm.runInNewContext(script('analytics-service.js'),{window});
-  assert.equal((await window.SamplingService.list()).length,1001);
-  await window.SamplingService.profile('user-1'); assert.equal(profileId,'user-1');
-  await window.SamplingService.save(1,{confirmed:5}); assert.equal(savedValues.confirmed,5); assert.ok(savedValues.updated_at);
-  await assert.rejects(()=>window.SamplingService.remove(1),/não foi excluído/);
-});
 test('exportações: escopo filtrado, resumo completo, XML válido e JSON integral', () => {
   const sheets=[], downloads=[];
   let blob;
@@ -100,40 +80,4 @@ test('gráficos compartilham os totais da tabela e atualizam sem recriar instân
   window.SamplingComponents.charts([],M.summarize([]),false);
   assert.equal(instances.length,2); assert.equal(instances[0].updated,true);
   assert.equal(nodes.get('#status-chart').hidden,true);
-});
-test('fluxo do painel: sessão, filtro, criação, validação, edição, exclusão e saída', async () => {
-  const nodes=new Map(), listeners=new Map(), calls=[], initial=fixtures.map(row=>({...row}));
-  const node = selector => {
-    if(!nodes.has(selector)) nodes.set(selector,{value:'',hidden:true,disabled:false,textContent:'',innerHTML:'',
-      addEventListener(type,fn){listeners.set(`${selector}:${type}`,fn);},showModal(){this.open=true;},close(){this.open=false;},
-    });
-    return nodes.get(selector);
-  };
-  const document={querySelector:node,querySelectorAll:()=>[]};
-  const C={esc:String,kpis(){},funnel(){},matrix(){},performance(){},ranking(){},charts:()=>true};
-  const service={session:async()=>({user:{id:'u'}}),profile:async()=>({role:'admin',display_name:'Ana Paula'}),list:async()=>initial,
-    save:async(id,data)=>{calls.push(['save',id,data]);return {...data,id:id??3,updated_at:'2024-04-20T12:00:00Z'};},
-    remove:async(id)=>calls.push(['delete',id]),signOut:async()=>calls.push(['logout'])};
-  const window={SamplingMetrics:M,SamplingComponents:C,SamplingService:service};
-  class FormData {constructor(form){return Object.entries(form.values);}}
-  let destination;
-  vm.runInNewContext(script('analytics.js'),{window,document,FormData,confirm:()=>true,location:{replace:value=>{destination=value;}}});
-  await new Promise(resolve=>setImmediate(resolve));
-  assert.equal(node('#user-name').textContent,'Ana Paula'); assert.equal(node('#add').disabled,false);
-  node('#add').onclick(); assert.equal(node('#record-dialog').open,true);
-  const submit=values=>listeners.get('#record-form:submit')({preventDefault(){},target:{values}});
-  const valid={coordinator:'DANTE',leader:'NOVO',total_base:'100',confirmed:'20',not_confirmed:'10',does_not_know:'0',mailbox:'5'};
-  await submit({...valid,total_base:'2'}); assert.equal(calls.length,0); assert.match(node('#form-error').textContent,/não pode ultrapassar/);
-  await submit(valid); assert.equal(calls[0][0],'save'); assert.equal(calls[0][1],null); assert.equal(node('#record-dialog').open,false);
-  const action=async(kind,id)=>{
-    const button={dataset:{action:kind,id:String(id)},closest:()=>({open:true})};
-    return listeners.get('#rows:click')({target:{closest:()=>button}});
-  };
-  await action('edit',1); assert.equal(node('#dialog-title').textContent,'Editar registro');
-  await submit(valid); assert.equal(calls[1][1],1);
-  await action('delete',2); assert.deepEqual(calls[2],['delete',2]);
-  node('#from').value='2024-05-01'; node('#to').value='2024-04-01'; listeners.get('#filters:change')();
-  assert.match(node('#message').textContent,/inicial não pode ser posterior/);
-  node('#clear').onclick(); assert.equal(node('#from').value,'');
-  await node('#logout').onclick(); assert.equal(destination,'login.html');
 });

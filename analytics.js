@@ -9,7 +9,7 @@
   function render() {
     const from = $('#from').value, to = $('#to').value;
     if (from && to && from > to) { message('A data inicial não pode ser posterior à data final.', 'error'); return; }
-    visible = M.filter(records, $('#coordinator').value, from, to);
+    visible = service.filterRecords(records, $('#coordinator').value, from, to);
     const total = M.summarize(visible), leaders = M.group(visible, ['coordinator', 'leader']), groups = M.group(visible, ['coordinator']);
     const invalid = visible.filter(row => M.validate(row)).length;
     $('#dashboard').hidden = false;
@@ -38,7 +38,8 @@
     if (!ready || busy) return;
     editingId = record?.id ?? null;
     $('#dialog-title').textContent = record ? 'Editar registro' : 'Adicionar registro';
-    $('#form-fields').innerHTML = Object.entries(labels).map(([field, label]) => `<label>${label}<input name="${field}" ${M.numericFields.includes(field) ? 'type="number" min="0" max="2147483647" step="1"' : 'type="text" maxlength="200"'} required value="${C.esc(record?.[field] ?? (M.numericFields.includes(field) ? 0 : field === 'coordinator' ? $('#coordinator').value : ''))}"></label>`).join('');
+    $('#form-fields').innerHTML = Object.entries(labels).filter(([field]) => !record || ['coordinator','leader','total_base'].includes(field)).map(([field, label]) => `<label>${label}<input name="${field}" ${M.numericFields.includes(field) ? 'type="number" min="0" max="2147483647" step="1"' : 'type="text" maxlength="200"'} required value="${C.esc(record?.[field] ?? (M.numericFields.includes(field) ? 0 : field === 'coordinator' ? $('#coordinator').value : ''))}"></label>`).join('');
+    $('#form-fields').insertAdjacentHTML('afterbegin', record ? '<p class="subtitle" style="grid-column:1/-1">Edite os nomes e a base. Para corrigir a produção por data, use Registros diários.</p>' : '<label style="grid-column:1/-1">Data do registro<input type="date" name="record_date" required value="' + M.localDay(new Date()) + '"></label>');
     $('#form-error').textContent = '';
     $('#record-dialog').showModal();
   }
@@ -52,7 +53,7 @@
   async function save(event) {
     event.preventDefault();
     if (busy) return;
-    const data = Object.fromEntries(new FormData(event.target));
+    const data = {...(records.find(r => r.id === editingId) || {}), ...Object.fromEntries(new FormData(event.target))};
     Object.keys(labels).forEach(field => { data[field] = M.numericFields.includes(field) ? Number(data[field]) : data[field].trim(); });
     const validation = M.validate(data) || (!data.coordinator || !data.leader ? 'Preencha coordenador e líder.' : '');
     if (validation) { $('#form-error').textContent = validation; return; }
@@ -61,7 +62,7 @@
       const saved = await service.save(editingId, data);
       const index = records.findIndex(record => record.id === saved.id);
       if (index < 0) records.push(saved); else records[index] = saved;
-      $('#record-dialog').close(); filterOptions(); render();
+      $('#record-dialog').close(); await load();
       const isVisible = visible.some(record => record.id === saved.id);
       if (!visible.some(record => M.validate(record))) message(isVisible ? 'Registro salvo com sucesso.' : 'Registro salvo. Ele está fora dos filtros atuais; limpe os filtros para vê-lo.', 'success');
     } catch (error) { $('#form-error').textContent = `Não foi possível salvar: ${error.message}`; }
@@ -108,6 +109,7 @@
       $('#role-badge').textContent = admin ? 'Administrador' : 'Usuário';
       $('#avatar').textContent = (profile.display_name || 'U').split(/\s+/).map(part => part[0]).join('').slice(0, 2).toUpperCase();
       await load();
+      if (new URLSearchParams(location.search).get('novo') === '1') openEditor();
     } catch (error) { message(`Não foi possível abrir o painel: ${error.message}. Use Atualizar dados para tentar novamente.`, 'error'); }
     finally { $('#refresh').disabled = false; icons(); }
   }

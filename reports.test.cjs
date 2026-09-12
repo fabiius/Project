@@ -1,6 +1,6 @@
 const {test}=require('node:test'),assert=require('node:assert/strict'),vm=require('node:vm'),fs=require('node:fs'),path=require('node:path');
-const M=require('../analytics-metrics.js'),window={SamplingMetrics:M};
-vm.runInNewContext(fs.readFileSync(path.join(__dirname,'../report-model.js'),'utf8'),{window});
+const M=require('./analytics-metrics.js'),window={SamplingMetrics:M};
+vm.runInNewContext(fs.readFileSync(path.join(__dirname,'report-model.js'),'utf8'),{window});
 const row={id:1,coordinator:'Dante',leader:'João',total_base:100,confirmed:50,not_confirmed:15,does_not_know:5,mailbox:10};
 test('relatório captura dados independentes e preserva totais ao filtrar ranking',()=>{
   const source=[{...row}],r=window.SamplingReportModel.create(source,{minimum:90});source[0].confirmed=0;

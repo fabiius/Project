@@ -1,10 +1,9 @@
 {
   "name": "controle-de-amostragem",
   "private": true,
-  "version": "1.0.0",
+  "version": "2.0.1",
   "scripts": {
-    "start": "npx serve .",
-    "check": "node scripts/check.cjs",
-    "test": "node --test tests/*.test.cjs"
+    "check": "node check.cjs",
+    "test": "node --test analytics.test.cjs reports.test.cjs daily.test.cjs"
   }
 }

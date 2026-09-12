@@ -1,6 +1,6 @@
 (() => {
   'use strict';
-  let client;
+  let client, daily = [];
   const db = () => {
     const config = window.APP_CONFIG || {};
     if (!config.SUPABASE_URL || !config.SUPABASE_ANON_KEY || config.SUPABASE_URL.includes('COLE_AQUI')) throw new Error('A conexão com o banco não foi configurada.');
@@ -17,12 +17,31 @@
       for (let offset = 0; ; offset += 500) {
         const page = unwrap(await db().from('sample_records').select('*').order('id').range(offset, offset + 499));
         rows.push(...page);
-        if (page.length < 500) return rows;
+        if (page.length < 500) {
+          daily = [];
+          for (let start = 0; ; start += 500) {
+            const result = await db().from('daily_records').select('*').order('id').range(start,start+499);
+            if (result.error) throw new Error('A atualização do histórico diário ainda não foi aplicada. Execute ATUALIZACAO-DIARIA-V2.sql no Supabase.');
+            daily.push(...result.data);
+            if (result.data.length < 500) break;
+          }
+          return rows;
+        }
       }
     },
+    filterRecords(rows, coordinator, from, to) {
+      if (!from && !to) return rows.filter(r => !coordinator || r.coordinator === coordinator);
+      return rows.filter(r => !coordinator || r.coordinator === coordinator).flatMap(r => {
+        const items = daily.filter(d => String(d.record_id) === String(r.id) && (!from || d.record_date >= from) && (!to || d.record_date <= to));
+        if (!items.length) return [];
+        const result = {...r};
+        ['confirmed','not_confirmed','does_not_know','mailbox'].forEach(k => result[k] = items.reduce((n,d) => n + Number(d[k]),0));
+        return [result];
+      });
+    },
     async save(id, values) {
-      const query = id == null ? db().from('sample_records').insert(values) : db().from('sample_records').update({ ...values, updated_at: new Date().toISOString() }).eq('id', id);
-      return unwrap(await query.select().single());
+      const payload = Object.fromEntries(['coordinator','leader','total_base','confirmed','not_confirmed','does_not_know','mailbox','record_date'].filter(k => values[k] !== undefined).map(k => [k,values[k]]));
+      return unwrap(await db().rpc('save_sampling_base_v2',{p_id:id,p_values:payload}));
     },
     async remove(id) {
       const rows = unwrap(await db().from('sample_records').delete().eq('id', id).select('id'));
