@@ -22,6 +22,7 @@
           for (let start = 0; ; start += 500) {
             const result = await db().from('daily_records').select('*').order('id').range(start,start+499);
             if (result.error) throw new Error('A atualização do histórico diário ainda não foi aplicada. Execute ATUALIZACAO-DIARIA-V2.sql no Supabase.');
+            if(result.data.some(d=>d.base_added==null))throw new Error('Execute BASE-DIARIA-V3.sql no Supabase antes de usar esta atualização.');
             daily.push(...result.data);
             if (result.data.length < 500) break;
           }
@@ -34,7 +35,7 @@
       return rows.filter(r => !coordinator || r.coordinator === coordinator).flatMap(r => {
         const items = daily.filter(d => String(d.record_id) === String(r.id) && (!from || d.record_date >= from) && (!to || d.record_date <= to));
         if (!items.length) return [];
-        const result = {...r};
+        const result = {...r,total_base:daily.filter(d=>String(d.record_id)===String(r.id)&&(!to||d.record_date<=to)).reduce((n,d)=>n+Number(d.base_added),0)};
         ['confirmed','not_confirmed','does_not_know','mailbox'].forEach(k => result[k] = items.reduce((n,d) => n + Number(d[k]),0));
         return [result];
       });

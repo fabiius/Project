@@ -6,7 +6,7 @@ async function all(table){const rows=[];for(let offset=0;;offset+=500){const r=a
 window.DailyData={
  async session(){return unwrap(await db().auth.getSession()).session;},
  async profile(id){return unwrap(await db().from('profiles').select('display_name,role').eq('id',id).single());},
- async load(){const base=await all('sample_records'),daily=await all('daily_records');if(daily.some(d=>d.record_id==null))throw new Error('Execute ATUALIZACAO-DIARIA-V2.sql para atualizar o histórico existente.');const byId=new Map(base.map(b=>[String(b.id),b]));return {base,daily:daily.map(d=>({...d,coordinator:byId.get(String(d.record_id))?.coordinator||d.coordinator,leader:byId.get(String(d.record_id))?.leader||d.leader}))};},
+ async load(){const base=await all('sample_records'),daily=await all('daily_records');if(daily.some(d=>d.record_id==null))throw new Error('Execute ATUALIZACAO-DIARIA-V2.sql para atualizar o histórico existente.');if(daily.some(d=>d.base_added==null))throw new Error('Execute BASE-DIARIA-V3.sql no Supabase antes de usar esta atualização.');const byId=new Map(base.map(b=>[String(b.id),b]));return {base,daily:daily.map(d=>({...d,coordinator:byId.get(String(d.record_id))?.coordinator||d.coordinator,leader:byId.get(String(d.record_id))?.leader||d.leader}))};},
  async saveDaily(id,value){const query=id==null?db().from('daily_records').insert(value):db().from('daily_records').update(value).eq('id',id);return unwrap(await query.select().single());},
  async removeDaily(id){const rows=unwrap(await db().from('daily_records').delete().eq('id',id).select('id'));if(!rows.length)throw new Error('Exclusão não autorizada.');},
  async signOut(){unwrap(await db().auth.signOut());}

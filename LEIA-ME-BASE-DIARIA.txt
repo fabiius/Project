@@ -1,0 +1,22 @@
+ATUALIZAÇÃO DA BASE DIÁRIA — V3
+
+Este pacote atualiza a versão corrigida V2 que você já está usando.
+
+1. No Supabase, abra SQL Editor > New query. Cole TODO o conteúdo de BASE-DIARIA-V3.sql e clique em Run. Aguarde concluir sem erro.
+2. Substitua no seu projeto os 8 arquivos de sistema deste pacote pelos de mesmo nome: analytics.js, analytics-service.js, daily-model.js, daily-service.js, registros.html, registros.js, relatorios.html e relatorios.js.
+3. Publique a atualização pelo seu fluxo habitual no Vercel e recarregue o sistema com Ctrl+F5.
+
+Não é necessário executar novamente o SQL V2. O arquivo SQL V3 e este texto são instruções; não precisam ser publicados no site.
+
+COMO USAR
+Informe apenas a base adicionada naquele lançamento. Exemplo: base anterior 100 + lançamento de 50 = base acumulada 150. Use zero quando não houver novas pessoas na base.
+O botão Adicionar registro da página inicial aceita o mesmo coordenador e líder e acrescenta um lançamento datado. Para selecionar um líder existente, também pode usar Registros diários.
+Confirmados e demais resultados continuam sendo somados. Pendentes e percentuais são recalculados.
+Para corrigir o valor de um lançamento já salvo, use Editar em Registros diários. A correção substitui o valor daquele lançamento.
+
+HISTÓRICO E RELATÓRIOS
+Os valores existentes foram preservados como base inicial no primeiro lançamento de cada líder. As datas existentes, inclusive 11/09, são mantidas.
+Relatórios mostram base adicionada no período e base acumulada até a data final. As exportações respeitam os indicadores selecionados.
+
+VALIDAÇÃO
+Testado localmente: atualização SQL e reexecução, preservação da data e da base inicial, soma para o mesmo líder, correções, validação de saldo por data, formulário no navegador, filtros e exportações PDF/Excel. Nenhuma alteração foi executada no seu Supabase por esta entrega.

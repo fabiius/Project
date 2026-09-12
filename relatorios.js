@@ -23,29 +23,29 @@ function build(){
  const text=(title,value)=>sections.push({type:'text',title,text:value});
  const chart=(title,labels,sets,line=false)=>{const canvas=makeChart(title,labels,sets,line),key='chart'+(++serial);charts[key]=canvas.toDataURL('image/png');sections.push({type:'chart',title,key,canvas});};
  const summary=[];
- if(opt.base)summary.push(['Base única',r.base]);
+ if(opt.base)summary.push(['Base adicionada no período',r.baseAdded],['Base acumulada até a data final',r.base]);
  if(opt.contacted)summary.push(['Contatados no período',r.total.contacted]);
  if(opt.confirmed)summary.push(['Confirmados no período',r.total.confirmed]);
  if(opt.pending)summary.push(['Pendentes ao final',r.end.pending]);
  if(opt.rates)summary.push(['Cobertura acumulada até a data final',A.percent(r.end.coverage)],['Taxa de confirmação no período',A.percent(r.total.confirmation)]);
  if(opt.summary)table('Resumo de indicadores',['Indicador','Valor'],summary);
  const selectedColumns=[];
- if(opt.base)selectedColumns.push(['Base','total_base']);
+ if(opt.base)selectedColumns.push(['Base acumulada','total_base']);
  if(opt.contacted)selectedColumns.push(['Contatados no período','contacted']);
  if(opt.confirmed)selectedColumns.push(['Confirmados no período','confirmed']);
  if(opt.rates)selectedColumns.push(['Confirmação no período','confirmation']);
  const cells=row=>selectedColumns.map(([,key])=>key==='confirmation'?A.percent(row[key]):row[key]);
- if(opt.daily)table('Produção por data',['Data',...(opt.contacted?['Contatados']:[]),...(opt.confirmed?['Confirmados']:[]),...(opt.rates?['Confirmação']:[])],r.daily.map(d=>[M.dateLabel(d.date),...(opt.contacted?[d.contacted]:[]),...(opt.confirmed?[d.confirmed]:[]),...(opt.rates?[A.percent(d.confirmation)]:[])]));
- if(opt.bars)chart('Produção por dia',r.daily.map(d=>M.dateLabel(d.date)),[...(opt.contacted?[{name:'Contatados',values:r.daily.map(d=>d.contacted),color:'#1260ed'}]:[]),...(opt.confirmed?[{name:'Confirmados',values:r.daily.map(d=>d.confirmed),color:'#159861'}]:[])]);
- if(opt.accumulated)chart('Evolução acumulada até cada data',r.daily.map(d=>M.dateLabel(d.date)),[...(opt.contacted?[{name:'Contatados acumulados',values:r.daily.map(d=>d.accumulated),color:'#1260ed'}]:[]),...(opt.confirmed?[{name:'Confirmados acumulados',values:r.daily.map(d=>d.accumulatedConfirmed),color:'#159861'}]:[])],true);
+ if(opt.daily)table('Produção por data',['Data',...(opt.base?['Base no dia','Base acumulada']:[]),...(opt.contacted?['Contatados']:[]),...(opt.confirmed?['Confirmados']:[]),...(opt.rates?['Confirmação']:[])],r.daily.map(d=>[M.dateLabel(d.date),...(opt.base?[d.base_added,d.accumulatedBase]:[]),...(opt.contacted?[d.contacted]:[]),...(opt.confirmed?[d.confirmed]:[]),...(opt.rates?[A.percent(d.confirmation)]:[])]));
+ if(opt.bars)chart('Produção por dia',r.daily.map(d=>M.dateLabel(d.date)),[...(opt.base?[{name:'Base adicionada',values:r.daily.map(d=>d.base_added),color:'#9660cf'}]:[]),...(opt.contacted?[{name:'Contatados',values:r.daily.map(d=>d.contacted),color:'#1260ed'}]:[]),...(opt.confirmed?[{name:'Confirmados',values:r.daily.map(d=>d.confirmed),color:'#159861'}]:[])]);
+ if(opt.accumulated)chart('Evolução acumulada até cada data',r.daily.map(d=>M.dateLabel(d.date)),[...(opt.base?[{name:'Base acumulada',values:r.daily.map(d=>d.accumulatedBase),color:'#9660cf'}]:[]),...(opt.contacted?[{name:'Contatados acumulados',values:r.daily.map(d=>d.accumulated),color:'#1260ed'}]:[]),...(opt.confirmed?[{name:'Confirmados acumulados',values:r.daily.map(d=>d.accumulatedConfirmed),color:'#159861'}]:[])],true);
  const rankRows=list=>list.filter(r=>r.contacted>0).map((r,i)=>[i+1,r.coordinator,...(r.leader!==undefined?[r.leader]:[]),...cells(r)]);
  if(opt.ranking)table('Ranking de líderes',['Posição','Coordenador','Líder',...selectedColumns.map(c=>c[0])],rankRows(r.leaders));
  if(opt.coordinators)table('Ranking de coordenadores',['Posição','Coordenador',...selectedColumns.map(c=>c[0])],rankRows(r.coordinators));
  if(opt.leaderChart)chart('Comparativo por líder — até 10 participantes',r.leaders.filter(d=>d.contacted>0).slice(0,10).map(d=>d.leader),[...(opt.contacted?[{name:'Contatados',values:r.leaders.filter(d=>d.contacted>0).slice(0,10).map(d=>d.contacted),color:'#1260ed'}]:[]),...(opt.confirmed?[{name:'Confirmados',values:r.leaders.filter(d=>d.contacted>0).slice(0,10).map(d=>d.confirmed),color:'#159861'}]:[])]);
- if(opt.details)table('Lançamentos detalhados',['Data','Coordenador','Líder',...(opt.contacted?['Contatados']:[]),...(opt.confirmed?['Confirmados']:[])],r.rows.map(d=>[M.dateLabel(d.record_date),d.coordinator,d.leader,...(opt.contacted?[M.contacted(d)]:[]),...(opt.confirmed?[d.confirmed]:[])]));
+ if(opt.details)table('Lançamentos detalhados',['Data','Coordenador','Líder',...(opt.base?['Base adicionada']:[]),...(opt.contacted?['Contatados']:[]),...(opt.confirmed?['Confirmados']:[])],r.rows.map(d=>[M.dateLabel(d.record_date),d.coordinator,d.leader,...(opt.base?[d.base_added]:[]),...(opt.contacted?[M.contacted(d)]:[]),...(opt.confirmed?[d.confirmed]:[])]));
  if(opt.notes&&$('#notes').value.trim())text('Observações para a equipe',$('#notes').value.trim());
  if(!sections.length)text('Sem seções selecionadas','Selecione as informações que deseja incluir no relatório.');
- const rule='Produção filtrada pela data do lançamento. A base é contada uma vez. Pendentes e cobertura consideram todo o histórico até a data final. Confirmação = confirmados / contatados no período. Rankings por confirmados, com desempate por contatados e nome.';
+ const rule='Produção filtrada pela data do lançamento. A base adicionada em cada data soma-se ao histórico. A base anterior à atualização foi preservada no primeiro lançamento. Pendentes e cobertura consideram todo o histórico até a data final. Confirmação = confirmados / contatados no período. Rankings por confirmados, com desempate por contatados e nome.';
  return {...r,sections,charts,generated:new Date(),rule};
 }
 function render(){

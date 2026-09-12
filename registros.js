@@ -4,22 +4,23 @@ const A=window.AppLayout,D=window.DailyData,M=window.DailyModel,$=s=>document.qu
 let base=[],daily=[],editing=null,admin=false,busy=false;
 const form=$('#entry-form');
 function current(){return base.find(b=>String(b.id)===$('#leader').value);}
-function payload(){return {record_id:Number($('#leader').value),record_date:form.elements.record_date.value,...Object.fromEntries(M.fields.map(k=>[k,Number(form.elements[k].value)])),notes:form.elements.notes.value.trim()};}
+function payload(){return {record_id:Number($('#leader').value),record_date:form.elements.record_date.value,...Object.fromEntries(M.entryFields.map(k=>[k,Number(form.elements[k].value)])),notes:form.elements.notes.value.trim()};}
 function projection(){
  const b=current();if(!b){$('#base-note').textContent='Cadastre um novo líder / base para começar.';$('#projection').innerHTML='';$('#save').disabled=true;return;}
  $('#save').disabled=busy;
  const list=daily.filter(d=>String(d.record_id)===String(b.id)),before=M.stats(Number(b.total_base),list);
- const after=M.stats(Number(b.total_base),[...list.filter(d=>String(d.id)!==String(editing)),payload()]);
+ const updated=[...list.filter(d=>String(d.id)!==String(editing)),payload()];
+ const after=M.stats(M.sumBase(updated),updated);
  $('#base-note').textContent='Base: '+A.integer(b.total_base)+' pessoas • '+A.integer(before.pending)+' ainda por contatar';
- $('#projection').innerHTML=[['Contatados',before.contacted,after.contacted],['Confirmados',before.confirmed,after.confirmed],['Pendentes',before.pending,after.pending],['Cobertura',A.percent(before.coverage),A.percent(after.coverage)],['Taxa de confirmação',A.percent(before.confirmation),A.percent(after.confirmation)]].map(([label,a,b])=>'<div class="projection-row"><span>'+label+'</span><b>'+a+'</b><span>→</span><strong>'+b+'</strong></div>').join('');
+ $('#projection').innerHTML=[['Base acumulada',before.total_base,after.total_base],['Contatados',before.contacted,after.contacted],['Confirmados',before.confirmed,after.confirmed],['Pendentes',before.pending,after.pending],['Cobertura',A.percent(before.coverage),A.percent(after.coverage)],['Taxa de confirmação',A.percent(before.confirmation),A.percent(after.confirmation)]].map(([label,a,b])=>'<div class="projection-row"><span>'+label+'</span><b>'+a+'</b><span>→</span><strong>'+b+'</strong></div>').join('');
 }
 function history(){
  const rows=daily.filter(d=>String(d.record_id)===$('#leader').value).sort((a,b)=>a.record_date.localeCompare(b.record_date)||a.id-b.id);
- let sum=0;const withTotal=rows.map(r=>({...r,sum:sum+=M.contacted(r)}));
- $('#history').innerHTML=withTotal.reverse().map(r=>'<tr><td>'+M.dateLabel(r.record_date)+'</td><td>'+A.integer(M.contacted(r))+'</td><td>'+A.integer(r.confirmed)+'</td><td>'+A.integer(r.sum)+'</td><td>'+A.esc(r.notes||'—')+'</td><td><button class="secondary" data-edit="'+r.id+'">Editar</button> '+(admin?'<button class="secondary" data-delete="'+r.id+'">Excluir</button>':'')+'</td></tr>').join('')||'<tr><td colspan="6" class="empty">Nenhum lançamento para esta base.</td></tr>';
+ let sum=0,baseSum=0;const withTotal=rows.map(r=>({...r,sum:sum+=M.contacted(r),baseSum:baseSum+=M.num(r.base_added)}));
+ $('#history').innerHTML=withTotal.reverse().map(r=>'<tr><td>'+M.dateLabel(r.record_date)+'</td><td>'+A.integer(r.base_added)+'</td><td>'+A.integer(r.baseSum)+'</td><td>'+A.integer(M.contacted(r))+'</td><td>'+A.integer(r.confirmed)+'</td><td>'+A.integer(r.sum)+'</td><td>'+A.esc(r.notes||'—')+'</td><td><button class="secondary" data-edit="'+r.id+'">Editar</button> '+(admin?'<button class="secondary" data-delete="'+r.id+'">Excluir</button>':'')+'</td></tr>').join('')||'<tr><td colspan="8" class="empty">Nenhum lançamento para esta base.</td></tr>';
 }
 function reset(){
- editing=null;M.fields.forEach(k=>form.elements[k].value=0);form.elements.notes.value='';form.elements.record_date.value=M.today();form.elements.record_date.max=M.today();
+ editing=null;M.entryFields.forEach(k=>form.elements[k].value=0);form.elements.notes.value='';form.elements.record_date.value=M.today();form.elements.record_date.max=M.today();
  $('#entry-title').textContent='Produção do dia';$('#cancel-edit').hidden=true;$('#coordinator').disabled=false;$('#leader').disabled=false;$('#save').textContent='Salvar lançamento';projection();history();
 }
 function leaders(selected){
@@ -53,7 +54,7 @@ $('#history').onclick=async event=>{
  const edit=event.target.closest('[data-edit]'),del=event.target.closest('[data-delete]');if(busy||(!edit&&!del))return;
  const id=(edit||del).dataset[edit?'edit':'delete'],row=daily.find(d=>String(d.id)===id);
  if(!row)return;
- if(edit){editing=row.id;M.fields.forEach(k=>form.elements[k].value=row[k]);form.elements.notes.value=row.notes||'';form.elements.record_date.value=row.record_date;$('#entry-title').textContent='Editar lançamento de '+M.dateLabel(row.record_date);$('#cancel-edit').hidden=false;$('#coordinator').disabled=true;$('#leader').disabled=true;$('#save').textContent='Salvar correção';projection();form.scrollIntoView({behavior:'smooth'});return;}
+ if(edit){editing=row.id;M.entryFields.forEach(k=>form.elements[k].value=row[k]);form.elements.notes.value=row.notes||'';form.elements.record_date.value=row.record_date;$('#entry-title').textContent='Editar lançamento de '+M.dateLabel(row.record_date);$('#cancel-edit').hidden=false;$('#coordinator').disabled=true;$('#leader').disabled=true;$('#save').textContent='Salvar correção';projection();form.scrollIntoView({behavior:'smooth'});return;}
  if(!admin||!confirm('Excluir o lançamento de '+M.dateLabel(row.record_date)+'? O acumulado será recalculado.'))return;
  busy=true;try{await D.removeDaily(row.id);await load();}catch(e){$('#form-error').textContent=e.message;}finally{busy=false;projection();}
 };

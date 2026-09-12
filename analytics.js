@@ -38,8 +38,8 @@
     if (!ready || busy) return;
     editingId = record?.id ?? null;
     $('#dialog-title').textContent = record ? 'Editar registro' : 'Adicionar registro';
-    $('#form-fields').innerHTML = Object.entries(labels).filter(([field]) => !record || ['coordinator','leader','total_base'].includes(field)).map(([field, label]) => `<label>${label}<input name="${field}" ${M.numericFields.includes(field) ? 'type="number" min="0" max="2147483647" step="1"' : 'type="text" maxlength="200"'} required value="${C.esc(record?.[field] ?? (M.numericFields.includes(field) ? 0 : field === 'coordinator' ? $('#coordinator').value : ''))}"></label>`).join('');
-    $('#form-fields').insertAdjacentHTML('afterbegin', record ? '<p class="subtitle" style="grid-column:1/-1">Edite os nomes e a base. Para corrigir a produção por data, use Registros diários.</p>' : '<label style="grid-column:1/-1">Data do registro<input type="date" name="record_date" required value="' + M.localDay(new Date()) + '"></label>');
+    $('#form-fields').innerHTML = Object.entries(labels).filter(([field]) => !record || ['coordinator','leader'].includes(field)).map(([field, label]) => `<label>${field === 'total_base' ? 'Base adicionada no dia' : label}<input name="${field}" ${M.numericFields.includes(field) ? 'type="number" min="0" max="2147483647" step="1"' : 'type="text" maxlength="200"'} required value="${C.esc(record?.[field] ?? (M.numericFields.includes(field) ? 0 : field === 'coordinator' ? $('#coordinator').value : ''))}"></label>`).join('');
+    $('#form-fields').insertAdjacentHTML('afterbegin', record ? '<p class="subtitle" style="grid-column:1/-1">Edite os nomes. Para corrigir a base ou a produção por data, use Registros diários.</p>' : '<p class="subtitle" style="grid-column:1/-1">Informe a base adicionada nesta data. Ela será somada à base anterior do mesmo coordenador e líder. Use zero se não houver novas pessoas.</p><label style="grid-column:1/-1">Data do registro<input type="date" name="record_date" required value="' + M.localDay(new Date()) + '"></label>');
     $('#form-error').textContent = '';
     $('#record-dialog').showModal();
   }
@@ -55,7 +55,10 @@
     if (busy) return;
     const data = {...(records.find(r => r.id === editingId) || {}), ...Object.fromEntries(new FormData(event.target))};
     Object.keys(labels).forEach(field => { data[field] = M.numericFields.includes(field) ? Number(data[field]) : data[field].trim(); });
-    const validation = M.validate(data) || (!data.coordinator || !data.leader ? 'Preencha coordenador e líder.' : '');
+    const existing = editingId == null ? records.find(r => r.coordinator.trim().toLowerCase() === data.coordinator.toLowerCase() && r.leader.trim().toLowerCase() === data.leader.toLowerCase()) : null;
+    const candidate = existing ? {...data,...Object.fromEntries(M.numericFields.map(k=>[k,Number(data[k])+Number(existing[k])]))} : data;
+    const invalidNumber = M.numericFields.some(k=>!Number.isSafeInteger(data[k])||data[k]<0||data[k]>2147483647);
+    const validation = (invalidNumber ? 'Use números inteiros não negativos.' : M.validate(candidate)) || (!data.coordinator || !data.leader ? 'Preencha coordenador e líder.' : '');
     if (validation) { $('#form-error').textContent = validation; return; }
     busy = true; $('#save-record').disabled = true; $('#cancel-dialog').disabled = true; $('#close-dialog').disabled = true;
     try {
