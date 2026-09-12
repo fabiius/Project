@@ -1,34 +1,19 @@
-# Controle de Amostragem — Relatórios de fechamento
+# Gestão Call Center — lançamentos diários e relatórios
 
-## Publicar esta atualização
+## Antes de publicar
 
-1. Extraia o ZIP.
-2. Envie todos os arquivos da pasta Amostragem para a raiz da branch publicada pela Vercel, incluindo `jszip.min.js`, `pdf-lib.min.js` e todos os arquivos `report-*.js`. Esta versão não depende de subpastas.
-3. Preserve sua configuração de publicação e a conexão Supabase atualmente utilizada. config.js no pacote é a cópia local preservada.
-4. Confirme o commit e aguarde a implantação.
-5. Entre no sistema e abra **Relatórios**, no Painel Analítico. A central está abaixo dos gráficos.
-
-Não execute SQL. Não é necessário mudar o banco, contratar Pro ou sair da Vercel para esta atualização.
+1. No Supabase, abra **SQL Editor** e execute uma única vez o arquivo `MIGRACAO-LANCAMENTOS-DIARIOS.sql`.
+2. Esse passo cria a tabela de lançamentos por data e migra os registros existentes para **11/09/2026**. A migração não repete os dados se for executada novamente.
+3. Envie todos os arquivos desta pasta para a raiz da branch publicada na Vercel e confirme o commit.
 
 ## Páginas
 
-- index.html: Painel Analítico, página principal e destino do login.
-- amostragem.html: tela clássica preservada.
-- painel-analitico.html: compatibilidade com o endereço anterior.
+- `index.html`: painel inicial, mantido como página principal. O botão **Adicionar registro** continua disponível.
+- `registros.html`: lançamento diário com escolha de data e prévia do acumulado antes de salvar.
+- `relatorios.html`: central separada com períodos rápidos, filtros, seleção do conteúdo e exportação.
 
-## Novidades
+## Regras dos cálculos
 
-PDF executivo com gráficos, indicadores, rankings e matriz paginada. Excel com seis abas, gráficos incorporados, filtros e percentuais numéricos. Seleção de escopo, observações, mínimo para rankings percentuais e resumo copiável para envio. XML e backup JSON preservados.
+A base de cada líder fica em `sample_records` e é contada apenas uma vez. Os contatos e confirmações de cada data ficam em `daily_records`. Ao salvar uma produção diária, os dados são somados ao histórico; os pendentes diminuem e cobertura e confirmação são recalculadas. O sistema bloqueia um lançamento que ultrapasse o saldo pendente do líder.
 
-Os relatórios são baixados no computador, sem armazenamento no banco e sem envio automático. Representam a situação dos dados carregados, não a produção exclusiva do dia. Gráficos do Excel são imagens estáticas.
-
-Consulte **RELATORIOS.md** para uso, arquivos alterados, testes, limitações e planejamento de uma futura contratação do Supabase Pro. Consulte **ROADMAP.md** para as próximas etapas.
-
-## Verificação
-
-    node scripts/check.cjs
-    node --test tests/*.test.cjs
-
-12 testes automatizados, testes de downloads no navegador com dados simulados e leitura independente dos arquivos. Não foram alterados dados de produção. O aplicativo Microsoft Excel não foi testado. Sem build ou TypeScript no projeto estático; lint não configurado.
-
-O login, o esquema SQL, a conexão e as permissões existentes foram preservados. Se houver regras antigas apontando a raiz do site para dashboard.html, revise-as: a página principal atual é index.html.
+O Excel é baixado diretamente. Para o PDF, use o botão **Preparar PDF** e escolha **Salvar como PDF** na janela de impressão; ela respeita os indicadores, gráficos e rankings selecionados na tela.
